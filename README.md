@@ -153,6 +153,23 @@ curl -sS "$BASE_URL/article/10/0"
 
 Template reverse proxy: `deploy/nginx-be-sharing-vision.conf`
 
+### One-shot infra validation
+
+Setelah deploy / saat validasi cepat, jalankan:
+
+```bash
+BASE_URL=https://be-sharing-vision.meetsin.id \
+FE_URL=https://sharing-vision-frontend-two.vercel.app \
+./scripts/fix-infra-one-shot.sh
+```
+
+Script ini akan menjalankan:
+- check konfigurasi dan reload Nginx,
+- cek validitas TLS,
+- cek `GET /health`, `GET /ready`, `GET /article/10/0`,
+- cek FE proxy (list/create/400 validation),
+- cek `HEAD /health`, `HEAD /ready`.
+
 ## Keamanan
 - Validasi dan sanitasi payload di service layer
 - CORS allowlist sesuai `ALLOWED_ORIGINS`
