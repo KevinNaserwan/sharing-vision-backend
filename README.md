@@ -1,19 +1,19 @@
 # sharing-vision-backend
 
-Backend microservice untuk use case **Post Article** (Golang + Gin + GORM) dengan MySQL.
+Backend microservice **Post Article** (Go + Gin + GORM + MySQL).
 
-## Arsitektur
-
-- `cmd/api`   : entrypoint HTTP API
+## Struktur Proyek
+- `cmd/api`: HTTP API
 - `cmd/migrate`: runner migrasi SQL
-- `internal`  : config, middleware, service, repository, model, storage, docs
-- `migrations`: file SQL DDL
-- `postman-collection.json`: request collection untuk semua endpoint
+- `internal`: config, middleware, service, repository, model, storage
+- `migrations`: skema tabel `posts`
+- `postman-collection.json`: koleksi endpoint untuk pengujian
+- `deploy/nginx-be-sharing-vision.conf`: template reverse proxy domain publik
 
-## Struktur Tabel `posts`
+## Tabel `posts`
 
 ```sql
-CREATE TABLE posts (
+CREATE TABLE IF NOT EXISTS posts (
   id INT AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(200) NOT NULL,
   content TEXT NOT NULL,
@@ -25,118 +25,83 @@ CREATE TABLE posts (
 ```
 
 ## Prasyarat
-
 - Go 1.22+
 - MySQL/MariaDB
+- Database `article`
 
-## Menyiapkan Database
-
-```sql
-CREATE DATABASE article;
-```
-
-## Menjalankan Migrasi
+## Konfigurasi Environment
 
 ```bash
 cp .env.example .env
-# edit .env sesuai environment
-touch .env
-source .env
+```
 
+Isi `.env`:
+
+```bash
+APP_ENV=production
+SERVER_ADDRESS=:8000
+DB_DSN=user:password@tcp(db_host:3306)/article?charset=utf8mb4&parseTime=True&loc=Local
+ALLOWED_ORIGINS=https://be-sharing-vision.meetsin.id,https://*.vercel.app,http://localhost:5173
+REQUEST_TIMEOUT_SECONDS=15
+READ_HEADER_TIMEOUT_SECONDS=5
+MAX_REQUEST_BODY_BYTES=1048576
+ENABLE_REQUEST_LOGGING=true
+```
+
+## Menjalankan
+
+### 1) Migrasi
+
+```bash
 go run ./cmd/migrate
 ```
 
-## Menjalankan API Lokal
+### 2) Menjalankan API
 
 ```bash
-cp .env.example .env
-# edit DB_DSN jika perlu
 source .env
-
 go run ./cmd/api
 ```
 
 Service berjalan di `:8000`.
 
-## Endpoint
-
-Semua endpoint prefiks `/article`.
-
-1. `POST /article/` → create article
-2. `GET /article/{limit}/{offset}` → list pagination
-3. `GET /article/{id}` → get by id
-4. `PUT /article/{id}` → update by id
-5. `PATCH /article/{id}` → update by id
-6. `POST /article/{id}` → update by id (alias), atau delete jika `action=delete`
-7. `DELETE /article/{id}` → delete by id
-
-Health check
-- `GET /health`
-- `GET /ready`
-- `GET /swagger.json` (opsional untuk dokumentasi OpenAPI bila dibutuhkan)
-
-## Validasi Payload
-
-Sebelum create/update, wajib dipenuhi:
-
-- `title`: required, minimal **20 karakter**
-- `content`: required, minimal **200 karakter**
-- `category`: required, minimal **3 karakter**
-- `status`: required, salah satu dari `publish`, `draft`, `thrash`
-
-Jika gagal validasi: response `400` dengan format:
-
-```json
-{
-  "message": "validation failed (n issue)",
-  "errors": {
-    "title": "minimum 20 characters"
-  }
-}
-```
-
-## Deployment ke VPS (Domain `https://be-sharing-vision.meetsin.id`)
-
-Backend ini dijalankan di VPS langsung (Docker), bukan Vercel.
-
-### 1) Build image
+### 3) Docker
 
 ```bash
-docker build --network host --build-arg GOPROXY_URL=https://goproxy.cn,direct -t sharing-vision-backend:live .
-```
-
-### 2) Run container (internal)
-
-Pastikan MySQL (`article` database + tabel `posts`) sudah tersedia.
-
-```bash
+docker build -t sharing-vision-backend:live .
 docker run -d \
   --name sharing-vision-backend \
   --network svnet \
   -p 8000:8000 \
-  -e APP_ENV=production \
-  -e SERVER_ADDRESS=:8000 \
-  -e DB_DSN='root:svroot123@tcp(sv-mysql:3306)/article?charset=utf8mb4&parseTime=True&loc=Local' \
-  -e ALLOWED_ORIGINS='https://be-sharing-vision.meetsin.id,https://*.vercel.app,http://localhost:5173,http://localhost:3000' \
+  --env-file .env \
   sharing-vision-backend:live
 ```
 
-### 3) Health check
+## Endpoint
 
-```bash
-curl https://be-sharing-vision.meetsin.id/health
-```
+Prefix: `/article`
 
-### 4) HTTPS (SSL)
+1. `POST /article/` → Create article baru
+2. `GET /article/{limit}/{offset}` → List artikel dengan pagination
+3. `GET /article/{id}` → Detail artikel by id
+4. `PUT /article/{id}` → Update artikel by id
+5. `PATCH /article/{id}` → Update artikel by id
+6. `POST /article/{id}` → Update by id (alias), atau hapus jika `?action=delete`
+7. `DELETE /article/{id}` → Hapus artikel by id
 
-Aktifkan SSL via webserver reverse proxy host (contoh Nginx/Apache) dengan ACME certificate untuk domain `be-sharing-vision.meetsin.id` lalu arahkan proxy ke:
+Health:
+- `GET /health`
+- `GET /ready`
 
-- `http://127.0.0.1:8000` (mode HTTP), atau
-- `http://127.0.0.1:8000` (mode HTTPS terminasi TLS di reverse proxy).
+## Validasi Request
 
-Endpoint yang digunakan FE:
-- `https://be-sharing-vision.meetsin.id`
-- `https://be-sharing-vision.meetsin.id/docs`
+Semua input harus memenuhi:
+- `title`: required, minimal 20 karakter
+- `content`: required, minimal 200 karakter
+- `category`: required, minimal 3 karakter
+- `status`: required, harus salah satu dari `publish`, `draft`, `thrash`
+
+Jika validasi gagal: response `400` dengan detail error per field.
 
 ## Postman
 
@@ -146,24 +111,28 @@ Import `postman-collection.json`.
 cat postman-collection.json
 ```
 
-Catatan: Postman Collection di repository ini sudah menjadi sumber dokumentasi request utama. Swagger UI tidak dijadikan alat verifikasi penilaian.
+## Deployment (VPS)
 
-## Keamanan yang diterapkan
+1. Build image backend
+2. Jalankan container
+3. Pasang reverse proxy host untuk domain publik ke `127.0.0.1:8000`
+4. Aktifkan TLS (Let’s Encrypt) pada domain `be-sharing-vision.meetsin.id`
 
-- Validasi ketat payload
-- CORS origin allowlist
-- Header keamanan dasar (X-Content-Type-Options, CSP, X-Frame-Options, dll)
-- Recovery handler (JSON)
-- Maksimal ukuran body request
-- `.env` diproteksi via `.gitignore`
+Template reverse proxy: `deploy/nginx-be-sharing-vision.conf`
 
-## File penting
+## Keamanan
+- Validasi dan sanitasi payload di service layer
+- CORS allowlist sesuai `ALLOWED_ORIGINS`
+- Security headers (HSTS, CSP, X-Content-Type-Options, X-Frame-Options, dll)
+- Recover JSON handler untuk panic
+- Batas maksimal body request
+- `.env` dikecualikan via `.gitignore`
 
+## Referensi
 - [cmd/api/main.go](/cmd/api/main.go)
 - [cmd/migrate/main.go](/cmd/migrate/main.go)
 - [internal/config/config.go](/internal/config/config.go)
 - [internal/service/post_service.go](/internal/service/post_service.go)
 - [internal/handler/article_handler.go](/internal/handler/article_handler.go)
 - [internal/repository/post_repository.go](/internal/repository/post_repository.go)
-- [internal/docs/openapi.json](/internal/docs/openapi.json)
 - [postman-collection.json](/postman-collection.json)
