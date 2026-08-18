@@ -73,7 +73,7 @@ Semua endpoint prefiks `/article`.
 Health check
 - `GET /health`
 - `GET /ready`
-- `GET /docs` (Swagger UI), `GET /swagger.json`
+- `GET /swagger.json` (opsional untuk dokumentasi OpenAPI bila dibutuhkan)
 
 ## Validasi Payload
 
@@ -145,6 +145,8 @@ Import `postman-collection.json`.
 ```bash
 cat postman-collection.json
 ```
+
+Catatan: Postman Collection di repository ini sudah menjadi sumber dokumentasi request utama. Swagger UI tidak dijadikan alat verifikasi penilaian.
 
 ## Keamanan yang diterapkan
 
