@@ -190,3 +190,18 @@ Lihat [`DEPLOYMENT.md`](./DEPLOYMENT.md) untuk:
 - Recover handler untuk panic
 - Batas maksimal body request
 - `.env` tidak disimpan di repo (`.gitignore`)
+
+## CI/CD
+
+- Backend CI tersedia di GitHub Actions: `.github/workflows/ci.yml`
+- Pipeline memeriksa:
+  - install dependency Go
+  - pengecekan format `gofmt`
+  - unit test
+  - `go vet`
+- CI otomatis jalan pada setiap `push` dan `pull_request`.
+
+## Daftar Checklist untuk Deployment
+
+- Backend test/CI (lulus): open tab Actions dan cek workflow `backend-ci` berstatus ✅
+- Frontend test/CI (lulus): refer repo [sharing-vision-frontend](https://github.com/KevinNaserwan/sharing-vision-frontend), workflow `frontend-ci` berstatus ✅
