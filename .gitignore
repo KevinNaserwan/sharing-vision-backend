@@ -1,0 +1,4 @@
+build/
+go.work
+*.exe
+vendor/

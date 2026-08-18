@@ -1,0 +1,90 @@
+{
+  "info": {
+    "name": "sharing-vision-backend",
+    "description": "Postman collection untuk endpoint article",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Article",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Belajar Dasar Microservice dengan Go dan MySQL\",\n  \"content\": \"Artikel ini memiliki isi minimal 200 karakter. Isi contoh ini sengaja dibuat panjang supaya memenuhi validasi minimum dan bisa dipakai untuk testing endpoint pembuatan artikel pada dashboard sharing vision. Silakan ganti dengan konten yang sesuai kebutuhan.\",\n  \"category\": \"Tech\",\n  \"status\": \"draft\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/article/",
+          "host": ["{{base_url}}"],
+          "path": ["article", ""]
+        }
+      }
+    },
+    {
+      "name": "List Articles",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/article/10/0",
+          "host": ["{{base_url}}"],
+          "path": ["article", "10", "0"]
+        }
+      }
+    },
+    {
+      "name": "Get Article Detail",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/article/{{post_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["article", "{{post_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Update Article (PUT)",
+      "request": {
+        "method": "PUT",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Revisi Artikel Microservice Golang yang Lebih Baik\",\n  \"content\": \"Konten ini versi revisi artikel untuk memastikan validasi tetap terpenuhi dan tetap minimal dua ratus karakter. Perubahan dilakukan pada judul dan status sambil mempertahankan struktur utama data yang ditampilkan oleh dashboard.\",\n  \"category\": \"Tech\",\n  \"status\": \"publish\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/article/{{post_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["article", "{{post_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Delete Article (DELETE)",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "{{base_url}}/article/{{post_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["article", "{{post_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Delete Article (POST alias)",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{base_url}}/article/{{post_id}}?force=delete",
+          "host": ["{{base_url}}"],
+          "path": ["article", "{{post_id}}"],
+          "query": [{ "key": "force", "value": "delete" }]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8000"},
+    {"key": "post_id", "value": "1"}
+  ]
+}
