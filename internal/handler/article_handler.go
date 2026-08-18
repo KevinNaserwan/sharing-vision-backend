@@ -23,6 +23,7 @@ func NewArticleHandler(postService *service.PostService) *ArticleHandler {
 func (h *ArticleHandler) Register(r *gin.Engine) {
 	api := r.Group("/article")
 	{
+		api.POST("", h.create)
 		api.POST("/", h.create)
 		api.GET("/*path", h.getOrList)
 		api.PUT("/:id", h.update)
