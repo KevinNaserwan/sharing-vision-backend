@@ -92,6 +92,7 @@ Prefix: `/article`
 Health:
 - `GET /health`
 - `GET /ready`
+- `GET /` (ping service)
 
 ## Validasi Request
 

@@ -45,6 +45,13 @@ func main() {
 	}
 
 	h.Register(r)
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":   "ok",
+			"service":  "sharing-vision-backend",
+			"message":  "sharing-vision backend is running",
+		})
+	})
 
 	srv := &http.Server{
 		Addr:              cfg.ServerAddress,
