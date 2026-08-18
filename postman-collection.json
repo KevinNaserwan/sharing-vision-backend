@@ -131,7 +131,7 @@
     }
   ],
   "variable": [
-    { "key": "base_url", "value": "http://be-sharing-vision.meetsin.id:8000" },
+    { "key": "base_url", "value": "https://be-sharing-vision.meetsin.id" },
     { "key": "post_id", "value": "1" },
     { "key": "limit", "value": "10" },
     { "key": "offset", "value": "0" }
