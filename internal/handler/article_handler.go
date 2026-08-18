@@ -1,14 +1,13 @@
 package handler
 
 import (
-	"net/http"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
-	"sharing-vision-backend/internal/model"
 	"sharing-vision-backend/internal/repository"
 	"sharing-vision-backend/internal/service"
 )
@@ -25,8 +24,7 @@ func (h *ArticleHandler) Register(r *gin.Engine) {
 	api := r.Group("/article")
 	{
 		api.POST("/", h.create)
-		api.GET("/:limit/:offset", h.list)
-		api.GET("/:id", h.get)
+		api.GET("/*path", h.getOrList)
 		api.PUT("/:id", h.update)
 		api.PATCH("/:id", h.update)
 		api.POST("/:id", h.upsertOrDelete)
@@ -68,13 +66,34 @@ func (h *ArticleHandler) create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"id": post.ID, "message": "article created"})
 }
 
-func (h *ArticleHandler) list(c *gin.Context) {
-	limit, err := parsePositiveInt(c.Param("limit"))
+func (h *ArticleHandler) getOrList(c *gin.Context) {
+	path := strings.TrimPrefix(c.Param("path"), "/")
+	if path == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
+	parts := strings.Split(path, "/")
+	if len(parts) == 1 {
+		h.get(c, parts[0])
+		return
+	}
+
+	if len(parts) != 2 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
+	h.list(c, parts[0], parts[1])
+}
+
+func (h *ArticleHandler) list(c *gin.Context, limitParam string, offsetParam string) {
+	limit, err := parsePositiveInt(limitParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "limit must be a positive integer"})
 		return
 	}
-	offset, err := parseInt(c.Param("offset"))
+	offset, err := parseInt(offsetParam)
 	if err != nil || offset < 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "offset must be zero or a positive integer"})
 		return
@@ -89,8 +108,8 @@ func (h *ArticleHandler) list(c *gin.Context) {
 	c.JSON(http.StatusOK, posts)
 }
 
-func (h *ArticleHandler) get(c *gin.Context) {
-	id, err := parseUint(c.Param("id"))
+func (h *ArticleHandler) get(c *gin.Context, idParam string) {
+	id, err := parseUint(idParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an integer"})
 		return
@@ -98,7 +117,11 @@ func (h *ArticleHandler) get(c *gin.Context) {
 
 	post, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		h.respondNotFoundIfNeeded(c, err)
+		if err == repository.ErrPostNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "article not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 

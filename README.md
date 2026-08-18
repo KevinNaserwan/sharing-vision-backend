@@ -95,39 +95,46 @@ Jika gagal validasi: response `400` dengan format:
 }
 ```
 
-## Deployment ke Vercel (Domain `https://be-sharing-vision.meetsin.id`)
+## Deployment ke VPS (Domain `https://be-sharing-vision.meetsin.id`)
 
-Project sudah siap dideploy di Vercel.
+Backend ini dijalankan di VPS langsung (Docker), bukan Vercel.
 
-### 1) Import Repository
+### 1) Build image
 
-- Buka Vercel Dashboard → Add New Project → Import repository `sharing-vision-backend`
+```bash
+docker build --network host --build-arg GOPROXY_URL=https://goproxy.cn,direct -t sharing-vision-backend:live .
+```
 
-### 2) Build config
+### 2) Run container (internal)
 
-- Vercel akan memakai [vercel.json](./vercel.json) untuk route handler
+Pastikan MySQL (`article` database + tabel `posts`) sudah tersedia.
 
-### 3) Environment Variables (WAJIB)
+```bash
+docker run -d \
+  --name sharing-vision-backend \
+  --network svnet \
+  -p 8000:8000 \
+  -e APP_ENV=production \
+  -e SERVER_ADDRESS=:8000 \
+  -e DB_DSN='root:svroot123@tcp(sv-mysql:3306)/article?charset=utf8mb4&parseTime=True&loc=Local' \
+  -e ALLOWED_ORIGINS='https://be-sharing-vision.meetsin.id,https://*.vercel.app,http://localhost:5173,http://localhost:3000' \
+  sharing-vision-backend:live
+```
 
-Tambahkan di Project Settings → Environment Variables:
+### 3) Health check
 
-- `APP_ENV` = `production`
-- `SERVER_ADDRESS` = `:8000`
-- `DB_DSN` = `user:password@tcp(your-db-host:3306)/article?charset=utf8mb4&parseTime=True&loc=Local`
-- `ALLOWED_ORIGINS` = `https://be-sharing-vision.meetsin.id,https://*.vercel.app,http://localhost:5173`
+```bash
+curl https://be-sharing-vision.meetsin.id/health
+```
 
-Lalu redeploy.
+### 4) HTTPS (SSL)
 
-### 4) Custom Domain
+Aktifkan SSL via webserver reverse proxy host (contoh Nginx/Apache) dengan ACME certificate untuk domain `be-sharing-vision.meetsin.id` lalu arahkan proxy ke:
 
-- Masuk tab **Domains** → Add Domain: `be-sharing-vision.meetsin.id`
-- Ikuti panduan DNS yang diberikan Vercel untuk domain kamu
+- `http://127.0.0.1:8000` (mode HTTP), atau
+- `http://127.0.0.1:8000` (mode HTTPS terminasi TLS di reverse proxy).
 
-### 5) SSL
-
-- SSL otomatis aktif/managed oleh Vercel setelah domain tervalidasi.
-
-Setelah sukses deploy, endpoint produksi:
+Endpoint yang digunakan FE:
 - `https://be-sharing-vision.meetsin.id`
 - `https://be-sharing-vision.meetsin.id/docs`
 
