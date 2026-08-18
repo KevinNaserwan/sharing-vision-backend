@@ -26,6 +26,7 @@ func (h *ArticleHandler) Register(r *gin.Engine) {
 		api.POST("", h.create)
 		api.POST("/", h.create)
 		api.GET("/*path", h.getOrList)
+		api.HEAD("/*path", h.getOrList)
 		api.PUT("/:id", h.update)
 		api.PATCH("/:id", h.update)
 		api.POST("/:id", h.upsertOrDelete)

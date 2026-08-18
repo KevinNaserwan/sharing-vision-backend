@@ -46,6 +46,8 @@ func main() {
 		api.POST("/", createArticleHandler(client))
 		api.GET(":limit/:offset", listArticlesHandler(client))
 		api.GET(":id", getArticleHandler(client))
+		api.HEAD(":limit/:offset", listArticlesHandler(client))
+		api.HEAD(":id", getArticleHandler(client))
 		api.PUT(":id", updateArticleHandler(client))
 		api.PATCH(":id", updateArticleHandler(client))
 		api.POST(":id", upsertOrDeleteArticleHandler(client))
