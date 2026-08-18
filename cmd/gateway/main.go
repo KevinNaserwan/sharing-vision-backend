@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -386,6 +387,8 @@ func toHTTPError(c *gin.Context, err error) {
 	statusCode := status.Code(err)
 	code := http.StatusInternalServerError
 	message := "internal server error"
+	errorsMap := map[string]string(nil)
+
 	if statusErr, ok := status.FromError(err); ok {
 		message = statusErr.Message()
 
@@ -405,13 +408,37 @@ func toHTTPError(c *gin.Context, err error) {
 		case codes.Unavailable:
 			code = http.StatusServiceUnavailable
 		}
+
+		for _, detail := range statusErr.Details() {
+			badRequest, ok := detail.(*errdetails.BadRequest)
+			if !ok {
+				continue
+			}
+			errorsMap = map[string]string{}
+			for _, violation := range badRequest.GetFieldViolations() {
+				if violation == nil {
+					continue
+				}
+				field := strings.TrimSpace(violation.GetField())
+				description := strings.TrimSpace(violation.GetDescription())
+				if field == "" || description == "" {
+					continue
+				}
+				errorsMap[field] = description
+			}
+		}
+	}
+
+	responseBody := gin.H{"error": message}
+	if len(errorsMap) > 0 {
+		responseBody["errors"] = errorsMap
 	}
 
 	if statusCode != codes.Unknown && statusCode != codes.Internal {
-		c.JSON(code, gin.H{"error": message})
+		c.JSON(code, responseBody)
 		return
 	}
-	c.JSON(code, gin.H{"error": message})
+	c.JSON(code, responseBody)
 }
 
 func runEventConsumer(ctx context.Context, client articlepb.ArticleServiceClient) {

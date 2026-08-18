@@ -9,10 +9,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -183,8 +185,28 @@ func mapSvcErr(err error) error {
 		return nil
 	}
 
-	if _, ok := err.(service.ValidationError); ok {
-		return status.Error(codes.InvalidArgument, "validation failed")
+	if validationErr, ok := err.(service.ValidationError); ok {
+		badRequest := &errdetails.BadRequest{}
+		for _, issue := range validationErr.Issues {
+			field := strings.TrimSpace(issue.Field)
+			message := strings.TrimSpace(issue.Message)
+			if field == "" || message == "" {
+				continue
+			}
+			badRequest.FieldViolations = append(badRequest.FieldViolations, &errdetails.BadRequest_FieldViolation{
+				Field:       field,
+				Description: message,
+			})
+		}
+
+		base := status.New(codes.InvalidArgument, "validation failed")
+		if len(badRequest.FieldViolations) > 0 {
+			withDetails, detailErr := base.WithDetails(badRequest)
+			if detailErr == nil {
+				return withDetails.Err()
+			}
+		}
+		return base.Err()
 	}
 
 	if errors.Is(err, repository.ErrPostNotFound) {
