@@ -41,7 +41,7 @@ Isi `.env`:
 APP_ENV=production
 SERVER_ADDRESS=:8000
 DB_DSN=user:password@tcp(db_host:3306)/article?charset=utf8mb4&parseTime=True&loc=Local
-ALLOWED_ORIGINS=https://be-sharing-vision.meetsin.id,https://*.vercel.app,http://localhost:5173
+ALLOWED_ORIGINS=https://be-sharing-vision.meetsin.id,https://sharing-vision-frontend-two.vercel.app,https://*.vercel.app,http://localhost:5173
 REQUEST_TIMEOUT_SECONDS=15
 READ_HEADER_TIMEOUT_SECONDS=5
 MAX_REQUEST_BODY_BYTES=1048576
@@ -109,6 +109,38 @@ Import `postman-collection.json`.
 
 ```bash
 cat postman-collection.json
+```
+
+## Unit & Integration Test
+
+### Unit Test Go
+
+```bash
+go test ./...
+```
+
+### Smoke Test (real API)
+
+```bash
+BASE_URL="${BASE_URL:-http://127.0.0.1:8000}"
+
+# health
+curl -sS "$BASE_URL/health"
+
+# create
+CREATED=$(curl -sS -X POST "$BASE_URL/article/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Judul valid untuk validasi API dan integrasi",
+    "content": "Konten artikel ini ditulis cukup panjang agar memenuhi validasi minimum dua ratus karakter. Artikel menjelaskan alur publish draft trash, validasi input, endpoint pagination, dan cara sinkronisasi data antar halaman dashboard sehingga fitur dapat dipastikan berfungsi dengan aman di environment produksi.",
+    "category": "Technology",
+    "status": "draft"
+  }')
+
+echo "$CREATED"
+
+# list
+curl -sS "$BASE_URL/article/10/0"
 ```
 
 ## Deployment (VPS)

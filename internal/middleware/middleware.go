@@ -11,6 +11,8 @@ import (
 
 func SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		c.Header("Cross-Origin-Resource-Policy", "same-site")
+		c.Header("Cross-Origin-Opener-Policy", "same-origin")
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "DENY")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
