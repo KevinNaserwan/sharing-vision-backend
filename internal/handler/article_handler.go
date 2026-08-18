@@ -3,12 +3,14 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"log"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	"sharing-vision-backend/internal/repository"
+	"sharing-vision-backend/internal/response"
 	"sharing-vision-backend/internal/service"
 )
 
@@ -51,17 +53,18 @@ func (h *ArticleHandler) Register(r *gin.Engine) {
 func (h *ArticleHandler) create(c *gin.Context) {
 	var payload service.PostPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json payload"})
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidJSON, "invalid json payload", nil))
 		return
 	}
 
 	post, err := h.service.Create(c.Request.Context(), payload)
 	if err != nil {
-		if validationErr, ok := err.(service.ValidationError); ok {
+		if validationErr, ok := asValidationError(err); ok {
 			c.JSON(http.StatusBadRequest, validationErr.Response())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create article"})
+		log.Printf("article create failed: type=%T message=%v", err, err)
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ErrorCodeInternal, "failed to create article", nil))
 		return
 	}
 
@@ -71,7 +74,7 @@ func (h *ArticleHandler) create(c *gin.Context) {
 func (h *ArticleHandler) getOrList(c *gin.Context) {
 	path := strings.TrimPrefix(c.Param("path"), "/")
 	if path == "" {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, response.ErrorResponse(response.ErrorCodeNotFound, "not found", nil))
 		return
 	}
 
@@ -82,7 +85,7 @@ func (h *ArticleHandler) getOrList(c *gin.Context) {
 	}
 
 	if len(parts) != 2 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, response.ErrorResponse(response.ErrorCodeNotFound, "not found", nil))
 		return
 	}
 
@@ -92,18 +95,18 @@ func (h *ArticleHandler) getOrList(c *gin.Context) {
 func (h *ArticleHandler) list(c *gin.Context, limitParam string, offsetParam string) {
 	limit, err := parsePositiveInt(limitParam)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "limit must be a positive integer"})
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "limit must be a positive integer", nil))
 		return
 	}
 	offset, err := parseInt(offsetParam)
 	if err != nil || offset < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "offset must be zero or a positive integer"})
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "offset must be zero or a positive integer", nil))
 		return
 	}
 
 	posts, err := h.service.List(c.Request.Context(), limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load articles"})
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ErrorCodeInternal, "failed to load articles", nil))
 		return
 	}
 
@@ -113,17 +116,17 @@ func (h *ArticleHandler) list(c *gin.Context, limitParam string, offsetParam str
 func (h *ArticleHandler) get(c *gin.Context, idParam string) {
 	id, err := parseUint(idParam)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an integer"})
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "id must be an integer", nil))
 		return
 	}
 
 	post, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
 		if err == repository.ErrPostNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "article not found"})
+			c.JSON(http.StatusNotFound, response.ErrorResponse(response.ErrorCodeNotFound, "article not found", nil))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ErrorCodeInternal, "internal server error", nil))
 		return
 	}
 
@@ -133,30 +136,31 @@ func (h *ArticleHandler) get(c *gin.Context, idParam string) {
 func (h *ArticleHandler) update(c *gin.Context) {
 	id, err := parseUint(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an integer"})
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "id must be an integer", nil))
 		return
 	}
 
 	var payload service.PostPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json payload"})
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidJSON, "invalid json payload", nil))
 		return
 	}
 
 	_, err = h.service.Update(c.Request.Context(), id, payload)
 	if err != nil {
-		switch e := err.(type) {
-		case service.ValidationError:
-			c.JSON(http.StatusBadRequest, e.Response())
-			return
-		default:
-			if err == repository.ErrPostNotFound {
-				c.JSON(http.StatusNotFound, gin.H{"error": "article not found"})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update article"})
+		if validationErr, ok := asValidationError(err); ok {
+			c.JSON(http.StatusBadRequest, validationErr.Response())
 			return
 		}
+		log.Printf("article update failed: type=%T message=%v", err, err)
+
+		if err == repository.ErrPostNotFound {
+			c.JSON(http.StatusNotFound, response.ErrorResponse(response.ErrorCodeNotFound, "article not found", nil))
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ErrorCodeInternal, "failed to update article", nil))
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"id": id, "message": "article updated"})
@@ -165,7 +169,7 @@ func (h *ArticleHandler) update(c *gin.Context) {
 func (h *ArticleHandler) upsertOrDelete(c *gin.Context) {
 	id, err := parseUint(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an integer"})
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "id must be an integer", nil))
 		return
 	}
 
@@ -173,11 +177,11 @@ func (h *ArticleHandler) upsertOrDelete(c *gin.Context) {
 		err = h.service.Delete(c.Request.Context(), id)
 		if err != nil {
 			if err == repository.ErrPostNotFound {
-				c.JSON(http.StatusNotFound, gin.H{"error": "article not found"})
+				c.JSON(http.StatusNotFound, response.ErrorResponse(response.ErrorCodeNotFound, "article not found", nil))
 				return
 			}
 
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete article"})
+			c.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ErrorCodeInternal, "failed to delete article", nil))
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"id": id, "message": "article deleted"})
@@ -186,24 +190,25 @@ func (h *ArticleHandler) upsertOrDelete(c *gin.Context) {
 
 	var payload service.PostPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json payload"})
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidJSON, "invalid json payload", nil))
 		return
 	}
 
 	_, err = h.service.Update(c.Request.Context(), id, payload)
 	if err != nil {
-		switch e := err.(type) {
-		case service.ValidationError:
-			c.JSON(http.StatusBadRequest, e.Response())
-			return
-		default:
-			if err == repository.ErrPostNotFound {
-				c.JSON(http.StatusNotFound, gin.H{"error": "article not found"})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update article"})
+		if validationErr, ok := asValidationError(err); ok {
+			c.JSON(http.StatusBadRequest, validationErr.Response())
 			return
 		}
+		log.Printf("article upsert/update failed: type=%T message=%v", err, err)
+
+		if err == repository.ErrPostNotFound {
+			c.JSON(http.StatusNotFound, response.ErrorResponse(response.ErrorCodeNotFound, "article not found", nil))
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ErrorCodeInternal, "failed to update article", nil))
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"id": id, "message": "article updated"})
@@ -212,16 +217,16 @@ func (h *ArticleHandler) upsertOrDelete(c *gin.Context) {
 func (h *ArticleHandler) delete(c *gin.Context) {
 	id, err := parseUint(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an integer"})
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "id must be an integer", nil))
 		return
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
 		if err == repository.ErrPostNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "article not found"})
+			c.JSON(http.StatusNotFound, response.ErrorResponse(response.ErrorCodeNotFound, "article not found", nil))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete article"})
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ErrorCodeInternal, "failed to delete article", nil))
 		return
 	}
 
@@ -252,4 +257,18 @@ func shouldDeleteByQuery(c *gin.Context) bool {
 	action := strings.ToLower(strings.TrimSpace(c.Query("action")))
 	force := strings.ToLower(strings.TrimSpace(c.Query("force")))
 	return action == "delete" || force == "delete"
+}
+
+func asValidationError(err error) (service.ValidationError, bool) {
+	switch typed := err.(type) {
+	case service.ValidationError:
+		return typed, true
+	case *service.ValidationError:
+		if typed == nil {
+			return service.ValidationError{}, false
+		}
+		return *typed, true
+	default:
+		return service.ValidationError{}, false
+	}
 }

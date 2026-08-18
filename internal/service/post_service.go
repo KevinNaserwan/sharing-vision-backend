@@ -7,6 +7,7 @@ import (
 
 	"sharing-vision-backend/internal/model"
 	"sharing-vision-backend/internal/repository"
+	"sharing-vision-backend/internal/response"
 )
 
 type ValidationIssue struct {
@@ -20,6 +21,19 @@ type ValidationError struct {
 
 func (e ValidationError) Error() string {
 	return "validation error"
+}
+
+func (e ValidationError) Fields() map[string]string {
+	fields := make(map[string]string, len(e.Issues))
+	for _, issue := range e.Issues {
+		field := strings.TrimSpace(issue.Field)
+		message := strings.TrimSpace(issue.Message)
+		if field == "" || message == "" {
+			continue
+		}
+		fields[field] = message
+	}
+	return fields
 }
 
 type PostPayload struct {
@@ -130,13 +144,9 @@ func validatePostPayload(payload PostPayload) error {
 }
 
 func (e ValidationError) Response() map[string]any {
-	fields := make(map[string]string, len(e.Issues))
-	for _, issue := range e.Issues {
-		fields[issue.Field] = issue.Message
-	}
-
-	return map[string]any{
-		"message": fmt.Sprintf("validation failed (%d issue)", len(e.Issues)),
-		"errors":  fields,
-	}
+	return response.ErrorResponse(
+		response.ErrorCodeValidation,
+		fmt.Sprintf("validation failed (%d issue)", len(e.Issues)),
+		e.Fields(),
+	)
 }

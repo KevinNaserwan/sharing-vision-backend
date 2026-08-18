@@ -185,7 +185,7 @@ func mapSvcErr(err error) error {
 		return nil
 	}
 
-	if validationErr, ok := err.(service.ValidationError); ok {
+	if validationErr, ok := asValidationError(err); ok {
 		badRequest := &errdetails.BadRequest{}
 		for _, issue := range validationErr.Issues {
 			field := strings.TrimSpace(issue.Field)
@@ -214,6 +214,20 @@ func mapSvcErr(err error) error {
 	}
 
 	return status.Error(codes.Internal, "internal server error")
+}
+
+func asValidationError(err error) (service.ValidationError, bool) {
+	switch typed := err.(type) {
+	case service.ValidationError:
+		return typed, true
+	case *service.ValidationError:
+		if typed == nil {
+			return service.ValidationError{}, false
+		}
+		return *typed, true
+	default:
+		return service.ValidationError{}, false
+	}
 }
 
 func buildHTTPServer(cfg config.AppConfig, h *handler.ArticleHandler) *http.Server {

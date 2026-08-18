@@ -23,6 +23,7 @@ import (
 	"sharing-vision-backend/internal/articlepb"
 	"sharing-vision-backend/internal/config"
 	"sharing-vision-backend/internal/middleware"
+	"sharing-vision-backend/internal/response"
 )
 
 func main() {
@@ -155,7 +156,7 @@ func createArticleHandler(client articlepb.ArticleServiceClient) gin.HandlerFunc
 	return func(c *gin.Context) {
 		var payload articlepb.CreateArticleRequest
 		if err := c.ShouldBindJSON(&payload); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json payload"})
+			c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidJSON, "invalid json payload", nil))
 			return
 		}
 
@@ -173,13 +174,13 @@ func listArticlesHandler(client articlepb.ArticleServiceClient) gin.HandlerFunc 
 	return func(c *gin.Context) {
 		limit, err := parsePositiveInt(c.Param("limit"))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "limit must be a positive integer"})
+			c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "limit must be a positive integer", nil))
 			return
 		}
 
 		offset, err := parseInt(c.Param("offset"))
 		if err != nil || offset < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "offset must be zero or a positive integer"})
+			c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "offset must be zero or a positive integer", nil))
 			return
 		}
 
@@ -197,7 +198,7 @@ func articleReadRouteHandler(client articlepb.ArticleServiceClient) gin.HandlerF
 	return func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Param("path"), "/")
 		if path == "" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			c.JSON(http.StatusNotFound, response.ErrorResponse(response.ErrorCodeNotFound, "not found", nil))
 			return
 		}
 
@@ -206,7 +207,7 @@ func articleReadRouteHandler(client articlepb.ArticleServiceClient) gin.HandlerF
 		case 1:
 			id, err := parseUint(parts[0])
 			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an integer"})
+				c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "id must be an integer", nil))
 				return
 			}
 			resp, err := client.GetArticle(c.Request.Context(), &articlepb.GetArticleRequest{Id: id})
@@ -215,7 +216,7 @@ func articleReadRouteHandler(client articlepb.ArticleServiceClient) gin.HandlerF
 				return
 			}
 			if resp == nil || resp.Post == nil {
-				c.JSON(http.StatusNotFound, gin.H{"error": "article not found"})
+				c.JSON(http.StatusNotFound, response.ErrorResponse(response.ErrorCodeNotFound, "article not found", nil))
 				return
 			}
 			c.JSON(http.StatusOK, resp.Post)
@@ -223,13 +224,13 @@ func articleReadRouteHandler(client articlepb.ArticleServiceClient) gin.HandlerF
 		case 2:
 			limit, err := parsePositiveInt(parts[0])
 			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "limit must be a positive integer"})
+				c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "limit must be a positive integer", nil))
 				return
 			}
 
 			offset, err := parseInt(parts[1])
 			if err != nil || offset < 0 {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "offset must be zero or a positive integer"})
+				c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "offset must be zero or a positive integer", nil))
 				return
 			}
 
@@ -241,7 +242,7 @@ func articleReadRouteHandler(client articlepb.ArticleServiceClient) gin.HandlerF
 			c.JSON(http.StatusOK, resp.Posts)
 			return
 		default:
-			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			c.JSON(http.StatusNotFound, response.ErrorResponse(response.ErrorCodeNotFound, "not found", nil))
 			return
 		}
 	}
@@ -251,7 +252,7 @@ func getArticleHandler(client articlepb.ArticleServiceClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := parseUint(c.Param("id"))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an integer"})
+			c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "id must be an integer", nil))
 			return
 		}
 
@@ -261,7 +262,7 @@ func getArticleHandler(client articlepb.ArticleServiceClient) gin.HandlerFunc {
 			return
 		}
 		if resp == nil || resp.Post == nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "article not found"})
+			c.JSON(http.StatusNotFound, response.ErrorResponse(response.ErrorCodeNotFound, "article not found", nil))
 			return
 		}
 
@@ -273,13 +274,13 @@ func updateArticleHandler(client articlepb.ArticleServiceClient) gin.HandlerFunc
 	return func(c *gin.Context) {
 		id, err := parseUint(c.Param("id"))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an integer"})
+			c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "id must be an integer", nil))
 			return
 		}
 
 		var payload articlepb.CreateArticleRequest
 		if err := c.ShouldBindJSON(&payload); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json payload"})
+			c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidJSON, "invalid json payload", nil))
 			return
 		}
 
@@ -303,7 +304,7 @@ func upsertOrDeleteArticleHandler(client articlepb.ArticleServiceClient) gin.Han
 	return func(c *gin.Context) {
 		id, err := parseUint(c.Param("id"))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an integer"})
+			c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "id must be an integer", nil))
 			return
 		}
 
@@ -319,7 +320,7 @@ func upsertOrDeleteArticleHandler(client articlepb.ArticleServiceClient) gin.Han
 
 		var payload articlepb.CreateArticleRequest
 		if err := c.ShouldBindJSON(&payload); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json payload"})
+			c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidJSON, "invalid json payload", nil))
 			return
 		}
 
@@ -343,7 +344,7 @@ func deleteArticleHandler(client articlepb.ArticleServiceClient) gin.HandlerFunc
 	return func(c *gin.Context) {
 		id, err := parseUint(c.Param("id"))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an integer"})
+			c.JSON(http.StatusBadRequest, response.ErrorResponse(response.ErrorCodeInvalidArgument, "id must be an integer", nil))
 			return
 		}
 
@@ -384,30 +385,14 @@ func shouldDeleteByQuery(c *gin.Context) bool {
 }
 
 func toHTTPError(c *gin.Context, err error) {
-	statusCode := status.Code(err)
-	code := http.StatusInternalServerError
 	message := "internal server error"
 	errorsMap := map[string]string(nil)
+	httpCode := http.StatusInternalServerError
+	appCode := response.ErrorCodeInternal
 
 	if statusErr, ok := status.FromError(err); ok {
 		message = statusErr.Message()
-
-		switch statusErr.Code() {
-		case codes.InvalidArgument:
-			code = http.StatusBadRequest
-		case codes.NotFound:
-			code = http.StatusNotFound
-		case codes.Canceled:
-			code = http.StatusRequestTimeout
-		case codes.DeadlineExceeded:
-			code = http.StatusGatewayTimeout
-		case codes.PermissionDenied:
-			code = http.StatusForbidden
-		case codes.Unauthenticated:
-			code = http.StatusUnauthorized
-		case codes.Unavailable:
-			code = http.StatusServiceUnavailable
-		}
+		httpCode, appCode = mapGRPCCodeToError(statusErr.Code(), len(errorsMap) > 0)
 
 		for _, detail := range statusErr.Details() {
 			badRequest, ok := detail.(*errdetails.BadRequest)
@@ -427,18 +412,36 @@ func toHTTPError(c *gin.Context, err error) {
 				errorsMap[field] = description
 			}
 		}
+
+		httpCode, appCode = mapGRPCCodeToError(statusErr.Code(), len(errorsMap) > 0)
 	}
 
-	responseBody := gin.H{"error": message}
-	if len(errorsMap) > 0 {
-		responseBody["errors"] = errorsMap
-	}
+	responseBody := response.ErrorResponse(appCode, message, errorsMap)
+	c.JSON(httpCode, responseBody)
+}
 
-	if statusCode != codes.Unknown && statusCode != codes.Internal {
-		c.JSON(code, responseBody)
-		return
+func mapGRPCCodeToError(statusCode codes.Code, hasFieldErrors bool) (int, response.ErrorCode) {
+	switch statusCode {
+	case codes.InvalidArgument:
+		if hasFieldErrors {
+			return http.StatusBadRequest, response.ErrorCodeValidation
+		}
+		return http.StatusBadRequest, response.ErrorCodeInvalidArgument
+	case codes.NotFound:
+		return http.StatusNotFound, response.ErrorCodeNotFound
+	case codes.Canceled:
+		return http.StatusRequestTimeout, response.ErrorCodeRequestTimeout
+	case codes.DeadlineExceeded:
+		return http.StatusGatewayTimeout, response.ErrorCodeTimeout
+	case codes.PermissionDenied:
+		return http.StatusForbidden, response.ErrorCodeForbidden
+	case codes.Unauthenticated:
+		return http.StatusUnauthorized, response.ErrorCodeUnauthorized
+	case codes.Unavailable:
+		return http.StatusServiceUnavailable, response.ErrorCodeUnavailable
+	default:
+		return http.StatusInternalServerError, response.ErrorCodeInternal
 	}
-	c.JSON(code, responseBody)
 }
 
 func runEventConsumer(ctx context.Context, client articlepb.ArticleServiceClient) {

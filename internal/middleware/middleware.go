@@ -2,11 +2,14 @@ package middleware
 
 import (
 	"bytes"
+	"log"
 	"io"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"sharing-vision-backend/internal/response"
 )
 
 func SecurityHeaders() gin.HandlerFunc {
@@ -83,7 +86,8 @@ func RecoverJSON() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+				log.Printf("Recovered panic: %v", rec)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, response.ErrorResponse(response.ErrorCodeInternal, "internal server error", nil))
 			}
 		}()
 		c.Next()
