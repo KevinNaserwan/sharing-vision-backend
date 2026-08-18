@@ -17,6 +17,7 @@ func SecurityHeaders() gin.HandlerFunc {
 		c.Header("X-XSS-Protection", "1; mode=block")
 		c.Header("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
 		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;")
+		c.Header("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
 		c.Header("Cache-Control", "no-store")
 		c.Next()
 	}
