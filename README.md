@@ -8,7 +8,7 @@ Backend microservice untuk use case **Post Article** (Golang + Gin + GORM) denga
 - `cmd/migrate`: runner migrasi SQL
 - `internal`  : config, middleware, service, repository, model, storage, docs
 - `migrations`: file SQL DDL
-- `postman-collection.json`: contoh request untuk seluruh endpoint
+- `postman-collection.json`: request collection untuk semua endpoint
 
 ## Struktur Tabel `posts`
 
@@ -18,7 +18,7 @@ CREATE TABLE posts (
   title VARCHAR(200) NOT NULL,
   content TEXT NOT NULL,
   category VARCHAR(100) NOT NULL,
-  status VARCHAR(100) NOT NULL,
+  status VARCHAR(100) NOT NULL CHECK (status IN ('publish', 'draft', 'thrash')),
   created_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -40,6 +40,7 @@ CREATE DATABASE article;
 ```bash
 cp .env.example .env
 # edit .env sesuai environment
+touch .env
 source .env
 
 go run ./cmd/migrate
@@ -51,6 +52,7 @@ go run ./cmd/migrate
 cp .env.example .env
 # edit DB_DSN jika perlu
 source .env
+
 go run ./cmd/api
 ```
 
@@ -93,51 +95,45 @@ Jika gagal validasi: response `400` dengan format:
 }
 ```
 
-## Deployment HTTPS ke `https://be-sharing-vision.meetsin.id`
+## Deployment ke Vercel (Domain `https://be-sharing-vision.meetsin.id`)
 
-Direkomendasikan deploy di VPS gratis berbiaya rendah/ gratis trial dengan Docker:
+Project sudah siap dideploy di Vercel.
 
-### 1) Build image
+### 1) Import Repository
 
-```bash
-docker build -t sharing-vision-backend:latest /home/meetsin/sharing-vision-backend
-```
+- Buka Vercel Dashboard → Add New Project → Import repository `sharing-vision-backend`
 
-### 2) Run service
+### 2) Build config
 
-```bash
-docker run -d \
-  --name sharing-vision-backend \
-  -p 127.0.0.1:8000:8000 \
-  -e APP_ENV=production \
-  -e DB_DSN='user:password@tcp(mysql_host:3306)/article?charset=utf8mb4&parseTime=True&loc=Local' \
-  sharing-vision-backend:latest
-```
+- Vercel akan memakai [vercel.json](./vercel.json) untuk route handler
 
-### 3) Reverse proxy + SSL (Nginx + Certbot)
+### 3) Environment Variables (WAJIB)
 
-1. Salin `deploy/nginx-be-sharing-vision.conf` ke `/etc/nginx/sites-available/` lalu symlink ke `sites-enabled`.
-2. Pasang DNS `A record` `be-sharing-vision.meetsin.id` ke server.
-3. Enable site dan reload nginx.
-4. Jalankan Certbot:
+Tambahkan di Project Settings → Environment Variables:
 
-```bash
-certbot --nginx -d be-sharing-vision.meetsin.id
-```
+- `APP_ENV` = `production`
+- `SERVER_ADDRESS` = `:8000`
+- `DB_DSN` = `user:password@tcp(your-db-host:3306)/article?charset=utf8mb4&parseTime=True&loc=Local`
+- `ALLOWED_ORIGINS` = `https://be-sharing-vision.meetsin.id,https://*.vercel.app,http://localhost:5173`
 
-### 4) Opsi systemd
+Lalu redeploy.
 
-Copy binary ke `/opt/sharing-vision-backend/article-service`, ubah `YOUR_DSN` di `deploy/article.service`, lalu aktifkan:
+### 4) Custom Domain
 
-```bash
-sudo cp deploy/article.service /etc/systemd/system/article.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now article.service
-```
+- Masuk tab **Domains** → Add Domain: `be-sharing-vision.meetsin.id`
+- Ikuti panduan DNS yang diberikan Vercel untuk domain kamu
+
+### 5) SSL
+
+- SSL otomatis aktif/managed oleh Vercel setelah domain tervalidasi.
+
+Setelah sukses deploy, endpoint produksi:
+- `https://be-sharing-vision.meetsin.id`
+- `https://be-sharing-vision.meetsin.id/docs`
 
 ## Postman
 
-Import file `postman-collection.json`.
+Import `postman-collection.json`.
 
 ```bash
 cat postman-collection.json
@@ -150,8 +146,15 @@ cat postman-collection.json
 - Header keamanan dasar (X-Content-Type-Options, CSP, X-Frame-Options, dll)
 - Recovery handler (JSON)
 - Maksimal ukuran body request
-- Hardening rekomendasi untuk service (systemd hardening + reverse proxy)
+- `.env` diproteksi via `.gitignore`
 
-## Swagger
+## File penting
 
-Buka: `https://be-sharing-vision.meetsin.id/docs`
+- [cmd/api/main.go](/cmd/api/main.go)
+- [cmd/migrate/main.go](/cmd/migrate/main.go)
+- [internal/config/config.go](/internal/config/config.go)
+- [internal/service/post_service.go](/internal/service/post_service.go)
+- [internal/handler/article_handler.go](/internal/handler/article_handler.go)
+- [internal/repository/post_repository.go](/internal/repository/post_repository.go)
+- [internal/docs/openapi.json](/internal/docs/openapi.json)
+- [postman-collection.json](/postman-collection.json)
