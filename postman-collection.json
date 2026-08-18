@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "sharing-vision-backend",
-    "description": "Postman collection untuk use case Post Article (Create, List, Get, Update, Delete)",
+    "description": "Postman collection untuk use case Post Article (create, list, get, update, delete + validation error)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -11,7 +11,21 @@
         "method": "GET",
         "url": "{{base_url}}/health"
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Health OK', function () {",
+              "  pm.expect(pm.response.code).to.eq(200);",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.status).to.eq('ok');",
+              "});"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "1. Create Article",
@@ -33,19 +47,47 @@
             "type": "text/javascript",
             "exec": [
               "const json = pm.response.json();",
-              "if (pm.response.code === 201 && json.id) {",
-              "  pm.collectionVariables.set('post_id', String(json.id));",
-              "  pm.collectionVariables.set('created_article_title', json.title || '');",
-              "}",
-              "pm.test('Should return created article id', function () {",
+              "pm.test('Create Article 201 dan return id', function () {",
               "  pm.expect(pm.response.code).to.eq(201);",
               "  pm.expect(json).to.have.property('id');",
+              "  pm.collectionVariables.set('post_id', String(json.id));",
               "});"
             ]
           }
         }
-      ],
-      "response": []
+      ]
+    },
+    {
+      "name": "1b. Create Article Validation Error",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"short\",\n  \"content\": \"invalid\",\n  \"category\": \"x\",\n  \"status\": \"wrong\"\n}"
+        },
+        "url": "{{base_url}}/article/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('Create validation error 400', function () {",
+              "  pm.expect(pm.response.code).to.eq(400);",
+              "  pm.expect(json).to.have.property('error');",
+              "  pm.expect(json.error.code).to.eq('VALIDATION_ERROR');",
+              "  pm.expect(json.error.errors).to.be.an('object');",
+              "  pm.expect(Object.keys(json.error.errors).length).to.be.greaterThan(0);",
+              "});"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "2. List Articles (Pagination)",
@@ -53,7 +95,66 @@
         "method": "GET",
         "url": "{{base_url}}/article/{{limit}}/{{offset}}"
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('List article 200', function () {",
+              "  pm.expect(pm.response.code).to.eq(200);",
+              "  pm.expect(json).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2b. List Invalid Limit",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/article/0/0"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('List invalid limit 400', function () {",
+              "  pm.expect(pm.response.code).to.eq(400);",
+              "  pm.expect(json).to.have.property('error');",
+              "  pm.expect(json.error.code).to.eq('INVALID_ARGUMENT');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2c. List Invalid Offset",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/article/5/-1"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('List invalid offset 400', function () {",
+              "  pm.expect(pm.response.code).to.eq(400);",
+              "  pm.expect(json.error.code).to.eq('INVALID_ARGUMENT');",
+              "});"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "3. Get Article By ID",
@@ -61,7 +162,45 @@
         "method": "GET",
         "url": "{{base_url}}/article/{{post_id}}"
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('Get article 200', function () {",
+              "  pm.expect(pm.response.code).to.eq(200);",
+              "  pm.expect(json).to.have.property('id');",
+              "  pm.expect(json.id).to.eq(Number(pm.collectionVariables.get('post_id')));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3b. Get By Invalid ID",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/article/abc"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('Get invalid id 400', function () {",
+              "  pm.expect(pm.response.code).to.eq(400);",
+              "  pm.expect(json.error.code).to.eq('INVALID_ARGUMENT');",
+              "  pm.expect(json.error.message).to.include('integer');",
+              "});"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "4a. Update Article (PUT)",
@@ -72,11 +211,25 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"Revisi Artikel untuk Status Publish\",\n  \"content\": \"Konten revisi ini sudah cukup panjang untuk melewati minimal 200 karakter. Revisi fokus pada penguatan validasi, penjelasan lifecycle artikel publish dan draft, lalu memastikan response API tetap konsisten untuk penggunaan dashboard.\",\n  \"category\": \"Technology\",\n  \"status\": \"publish\"\n}"
+          "raw": "{\n  \"title\": \"Revisi Artikel untuk Status Publish\",\n  \"content\": \"Revisi artikel ini sudah memenuhi syarat panjang minimal dua ratus karakter agar lolos validasi, memuat penjelasan lifecycle publish, draft, serta contoh alur pemrosesan status di service layer dan gateway sebelum tampil di dashboard.\",\n  \"category\": \"Technology\",\n  \"status\": \"publish\"\n}"
         },
         "url": "{{base_url}}/article/{{post_id}}"
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('Update PUT 200', function () {",
+              "  pm.expect(pm.response.code).to.eq(200);",
+              "  pm.expect(json).to.have.property('message');",
+              "});"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "4b. Update Article (PATCH)",
@@ -87,11 +240,23 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"Patch Artikel Untuk Draft Mode\",\n  \"content\": \"Patch ini juga memenuhi batas minimum panjang content dengan uraian tambahan agar tidak kena validasi. Panjang konten ini sengaja dibuat jelas, rinci, dan menutup syarat minimal 200 karakter untuk memastikan request tidak gagal validasi saat proses pembaruan.\",\n  \"category\": \"Education\",\n  \"status\": \"draft\"\n}"
+          "raw": "{\n  \"title\": \"Patch Artikel Untuk Draft Mode\",\n  \"content\": \"Patch ini juga memenuhi batas minimum panjang content agar request tetap valid. Fokus pada detail alur edit, perubahan status, dan audit trail ketika draft kembali diproses oleh backend.\",\n  \"category\": \"Education\",\n  \"status\": \"draft\"\n}"
         },
         "url": "{{base_url}}/article/{{post_id}}"
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Update PATCH 200', function () {",
+              "  pm.expect(pm.response.code).to.eq(200);",
+              "});"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "4c. Update Article (POST alias)",
@@ -106,7 +271,49 @@
         },
         "url": "{{base_url}}/article/{{post_id}}"
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Update POST alias 200', function () {",
+              "  pm.expect(pm.response.code).to.eq(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4d. Update Validation Error",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"abc\",\n  \"content\": \"invalid\",\n  \"category\": \"x\",\n  \"status\": \"invalid\"\n}"
+        },
+        "url": "{{base_url}}/article/{{post_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('Update validation error 400', function () {",
+              "  pm.expect(pm.response.code).to.eq(400);",
+              "  pm.expect(json.error.code).to.eq('VALIDATION_ERROR');",
+              "  pm.expect(Object.keys(json.error.errors || {}).length).to.be.greaterThan(0);",
+              "});"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "5a. Delete Article (DELETE)",
@@ -114,10 +321,23 @@
         "method": "DELETE",
         "url": "{{base_url}}/article/{{post_id}}"
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Delete 200', function () {",
+              "  pm.expect(pm.response.code).to.eq(200);",
+              "  pm.expect(pm.response.json()).to.have.property('message', 'article deleted');",
+              "});"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "5b. Delete Article (POST alias)",
+      "name": "5b. Delete by POST alias",
       "request": {
         "method": "POST",
         "url": {
@@ -127,7 +347,63 @@
           ]
         }
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Delete alias post 200', function () {",
+              "  pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5c. Not Found",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/article/99999999"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('Not found 404', function () {",
+              "  pm.expect(pm.response.code).to.eq(404);",
+              "  pm.expect(json.error.code).to.eq('NOT_FOUND');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5d. Delete on missing id (Not Found)",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/article/99999999"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('Delete missing id 404', function () {",
+              "  pm.expect(pm.response.code).to.be.oneOf([404]);",
+              "  pm.expect(json.error.code).to.eq('NOT_FOUND');",
+              "});"
+            ]
+          }
+        }
+      ]
     }
   ],
   "variable": [
