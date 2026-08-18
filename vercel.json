@@ -2,12 +2,11 @@
   "version": 2,
   "builds": [
     {
-      "src": "app/main.go",
+      "src": "cmd/api/main.go",
       "use": "@vercel/go"
     }
   ],
   "routes": [
-    { "src": "/article/(.*)", "dest": "app/main.go" },
-    { "src": "/health", "dest": "app/main.go" }
+    { "src": "/(.*)", "dest": "cmd/api/main.go" }
   ]
 }

@@ -1,83 +1,157 @@
 # sharing-vision-backend
 
-Backend Golang (Gin + GORM) untuk use case Post Article.
+Backend microservice untuk use case **Post Article** (Golang + Gin + GORM) dengan MySQL.
 
-## Endpoints
+## Arsitektur
 
-- `POST /article/` : create article
-- `GET /article/<limit>/<offset>` : list with pagination
-- `GET /article/<id>` : get article detail
-- `POST /article/<id>` : update article
-- `PUT /article/<id>` : update article
-- `PATCH /article/<id>` : update article
-- `DELETE /article/<id>` : delete article
+- `cmd/api`   : entrypoint HTTP API
+- `cmd/migrate`: runner migrasi SQL
+- `internal`  : config, middleware, service, repository, model, storage, docs
+- `migrations`: file SQL DDL
+- `postman-collection.json`: contoh request untuk seluruh endpoint
 
-## Validasi Payload
+## Struktur Tabel `posts`
 
-- `title` (required, min 20)
-- `content` (required, min 200)
-- `category` (required, min 3)
-- `status` (required, must be `publish`, `draft`, `thrash`)
+```sql
+CREATE TABLE posts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  category VARCHAR(100) NOT NULL,
+  status VARCHAR(100) NOT NULL,
+  created_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
 
-## Setup Lokal
+## Prasyarat
 
-### 1) Database
+- Go 1.22+
+- MySQL/MariaDB
 
-Buat database MySQL:
+## Menyiapkan Database
 
 ```sql
 CREATE DATABASE article;
 ```
 
-### 2) Environment
-
-Buat `.env`/shell:
+## Menjalankan Migrasi
 
 ```bash
-export DB_DSN='root:root@tcp(127.0.0.1:3306)/article?charset=utf8mb4&parseTime=True&loc=Local'
+cp .env.example .env
+# edit .env sesuai environment
+source .env
+
+go run ./cmd/migrate
 ```
 
-### 3) Migrasi
+## Menjalankan API Lokal
 
 ```bash
-cd sharing-vision-backend
-go run ./migrations
+cp .env.example .env
+# edit DB_DSN jika perlu
+source .env
+go run ./cmd/api
 ```
 
-### 4) Run API
+Service berjalan di `:8000`.
+
+## Endpoint
+
+Semua endpoint prefiks `/article`.
+
+1. `POST /article/` → create article
+2. `GET /article/{limit}/{offset}` → list pagination
+3. `GET /article/{id}` → get by id
+4. `PUT /article/{id}` → update by id
+5. `PATCH /article/{id}` → update by id
+6. `POST /article/{id}` → update by id (alias), atau delete jika `action=delete`
+7. `DELETE /article/{id}` → delete by id
+
+Health check
+- `GET /health`
+- `GET /ready`
+- `GET /docs` (Swagger UI), `GET /swagger.json`
+
+## Validasi Payload
+
+Sebelum create/update, wajib dipenuhi:
+
+- `title`: required, minimal **20 karakter**
+- `content`: required, minimal **200 karakter**
+- `category`: required, minimal **3 karakter**
+- `status`: required, salah satu dari `publish`, `draft`, `thrash`
+
+Jika gagal validasi: response `400` dengan format:
+
+```json
+{
+  "message": "validation failed (n issue)",
+  "errors": {
+    "title": "minimum 20 characters"
+  }
+}
+```
+
+## Deployment HTTPS ke `https://be-sharing-vision.meetsin.id`
+
+Direkomendasikan deploy di VPS gratis berbiaya rendah/ gratis trial dengan Docker:
+
+### 1) Build image
 
 ```bash
-go run ./app
+docker build -t sharing-vision-backend:latest /home/meetsin/sharing-vision-backend
 ```
 
-Server berjalan di `http://localhost:8000`.
-
-## Deploy Backend (gratis, disarankan)
-
-### Render
-
-1. Buat New Web Service.
-2. Set build command: `go build -o app ./app`
-3. Set start command: `./app`
-4. Tambah env `DB_DSN` ke MySQL host.
-
-### Railway
-
-1. Import repo.
-2. Env: `DB_DSN`
-3. Start command: `go run ./app`
-
-### Docker
+### 2) Run service
 
 ```bash
-docker build -t sharing-vision-backend .
-docker run -p 8000:8000 -e DB_DSN='user:pass@tcp(host:3306)/article?charset=utf8mb4&parseTime=True&loc=Local' sharing-vision-backend
+docker run -d \
+  --name sharing-vision-backend \
+  -p 127.0.0.1:8000:8000 \
+  -e APP_ENV=production \
+  -e DB_DSN='user:password@tcp(mysql_host:3306)/article?charset=utf8mb4&parseTime=True&loc=Local' \
+  sharing-vision-backend:latest
 ```
 
-## Postman Collection
+### 3) Reverse proxy + SSL (Nginx + Certbot)
 
-File: `postman-collection.json`
+1. Salin `deploy/nginx-be-sharing-vision.conf` ke `/etc/nginx/sites-available/` lalu symlink ke `sites-enabled`.
+2. Pasang DNS `A record` `be-sharing-vision.meetsin.id` ke server.
+3. Enable site dan reload nginx.
+4. Jalankan Certbot:
 
-## Repo
+```bash
+certbot --nginx -d be-sharing-vision.meetsin.id
+```
 
-- Backend: https://github.com/KevinNaserwan/sharing-vision-backend
+### 4) Opsi systemd
+
+Copy binary ke `/opt/sharing-vision-backend/article-service`, ubah `YOUR_DSN` di `deploy/article.service`, lalu aktifkan:
+
+```bash
+sudo cp deploy/article.service /etc/systemd/system/article.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now article.service
+```
+
+## Postman
+
+Import file `postman-collection.json`.
+
+```bash
+cat postman-collection.json
+```
+
+## Keamanan yang diterapkan
+
+- Validasi ketat payload
+- CORS origin allowlist
+- Header keamanan dasar (X-Content-Type-Options, CSP, X-Frame-Options, dll)
+- Recovery handler (JSON)
+- Maksimal ukuran body request
+- Hardening rekomendasi untuk service (systemd hardening + reverse proxy)
+
+## Swagger
+
+Buka: `https://be-sharing-vision.meetsin.id/docs`

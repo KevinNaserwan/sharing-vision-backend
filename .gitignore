@@ -1,4 +1,19 @@
-build/
-go.work
+# Binaries
+bin/
 *.exe
+*.out
+build/
+
+# Go
 vendor/
+go.work
+
+# Env
+.env
+.env.local
+.env.*
+!.env.example
+
+# OS/editor
+.DS_Store
+Thumbs.db

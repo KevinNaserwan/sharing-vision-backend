@@ -1,0 +1,159 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Sharing Vision Article API",
+    "version": "1.0.0",
+    "description": "Use case Post Article with draft/trash/publish flow."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/article/": {
+      "post": {
+        "summary": "Create article",
+        "operationId": "createArticle",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ArticlePayload" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StandardMessage" } } } },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/article/{limit}/{offset}": {
+      "get": {
+        "summary": "List articles with pagination",
+        "operationId": "listArticles",
+        "parameters": [
+          {"name":"limit","in":"path","required":true,"schema":{"type":"integer","minimum":1}},
+          {"name":"offset","in":"path","required":true,"schema":{"type":"integer","minimum":0}}
+        ],
+        "responses": {
+          "200": {
+            "description": "List of posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Post" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/article/{id}": {
+      "get": {
+        "summary": "Get article by id",
+        "operationId": "getArticle",
+        "parameters": [ {"name":"id","in":"path","required":true,"schema":{"type":"integer"}} ],
+        "responses": {
+          "200": { "description": "Article detail", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Post" } } },
+            "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update article",
+        "operationId": "updateArticlePut",
+        "parameters": [ {"name":"id","in":"path","required":true,"schema":{"type":"integer"}} ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ArticlePayload" } } }
+        },
+        "responses": {
+          "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StandardMessage" } } } },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "patch": {
+        "summary": "Update article",
+        "operationId": "updateArticlePatch",
+        "parameters": [ {"name":"id","in":"path","required":true,"schema":{"type":"integer"}} ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ArticlePayload" } } }
+        },
+        "responses": {
+          "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StandardMessage" } } } },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "post": {
+        "summary": "Update article (alternative), or delete with query action=delete",
+        "operationId": "upsertOrDeleteArticle",
+        "parameters": [
+          {"name":"id","in":"path","required":true,"schema":{"type":"integer"}},
+          {"name":"action","in":"query","required":false,"schema":{"type":"string","enum":["delete"]}}
+        ],
+        "requestBody": {
+          "required": false,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ArticlePayload" } } }
+        },
+        "responses": {
+          "200": { "description": "Updated or deleted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StandardMessage" } } } }
+        }
+      },
+      "delete": {
+        "summary": "Delete article",
+        "operationId": "deleteArticle",
+        "parameters": [ {"name":"id","in":"path","required":true,"schema":{"type":"integer"}} ],
+        "responses": {
+          "200": { "description": "Deleted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StandardMessage" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Post": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "title": {"type": "string", "maxLength": 200},
+          "content": {"type": "string"},
+          "category": {"type": "string", "maxLength": 100},
+          "status": {"type": "string", "enum": ["publish", "draft", "thrash"]},
+          "created_date": {"type": "string", "format": "date-time"},
+          "updated_date": {"type": "string", "format": "date-time"}
+        }
+      },
+      "ArticlePayload": {
+        "type": "object",
+        "required": ["title", "content", "category", "status"],
+        "properties": {
+          "title": {"type": "string", "minLength": 20, "maxLength": 200},
+          "content": {"type": "string", "minLength": 200},
+          "category": {"type": "string", "minLength": 3, "maxLength": 100},
+          "status": {"type": "string", "enum": ["publish", "draft", "thrash"]}
+        }
+      },
+      "StandardMessage": {
+        "type": "object",
+        "properties": { "message": {"type": "string"}, "id": {"type": "integer"} }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "message": { "type": "string" },
+          "errors": { "type": "object", "additionalProperties": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

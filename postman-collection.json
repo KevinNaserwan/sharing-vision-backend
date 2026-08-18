@@ -1,18 +1,18 @@
 {
   "info": {
     "name": "sharing-vision-backend",
-    "description": "Postman collection untuk endpoint article",
+    "description": "Postman collection untuk use case Post Article",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Create Article",
+      "name": "1. Create Article",
       "request": {
         "method": "POST",
         "header": [{"key": "Content-Type", "value": "application/json"}],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"Belajar Dasar Microservice dengan Go dan MySQL\",\n  \"content\": \"Artikel ini memiliki isi minimal 200 karakter. Isi contoh ini sengaja dibuat panjang supaya memenuhi validasi minimum dan bisa dipakai untuk testing endpoint pembuatan artikel pada dashboard sharing vision. Silakan ganti dengan konten yang sesuai kebutuhan.\",\n  \"category\": \"Tech\",\n  \"status\": \"draft\"\n}"
+          "raw": "{\n  \"title\": \"Belajar Dasar Microservice Menggunakan Go dan MySQL\",\n  \"content\": \"Artikel ini berisi contoh konten yang sangat panjang untuk memenuhi ketentuan minimum 200 karakter. Isi artikel harus memuat topik utama secara jelas, memiliki nilai pembelajaran, dan dapat diuji validasi pada field content. Anda dapat mengganti isi ini dengan teks lain yang tetap memenuhi panjang minimum. Contoh pengujian ini sengaja diperpanjang agar tidak salah saat ada aturan panjang minimal di sisi backend. Dengan contoh ini, request create dipastikan lolos validasi dan aman untuk dites end-to-end bersama dashboard.\",\n  \"category\": \"Technology\",\n  \"status\": \"draft\"\n}"
         },
         "url": {
           "raw": "{{base_url}}/article/",
@@ -22,7 +22,7 @@
       }
     },
     {
-      "name": "List Articles",
+      "name": "2. List Articles (Pagination)",
       "request": {
         "method": "GET",
         "url": {
@@ -33,7 +33,7 @@
       }
     },
     {
-      "name": "Get Article Detail",
+      "name": "3. Get Article Detail",
       "request": {
         "method": "GET",
         "url": {
@@ -44,13 +44,13 @@
       }
     },
     {
-      "name": "Update Article (PUT)",
+      "name": "4. Update Article (PUT)",
       "request": {
         "method": "PUT",
         "header": [{"key": "Content-Type", "value": "application/json"}],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"Revisi Artikel Microservice Golang yang Lebih Baik\",\n  \"content\": \"Konten ini versi revisi artikel untuk memastikan validasi tetap terpenuhi dan tetap minimal dua ratus karakter. Perubahan dilakukan pada judul dan status sambil mempertahankan struktur utama data yang ditampilkan oleh dashboard.\",\n  \"category\": \"Tech\",\n  \"status\": \"publish\"\n}"
+          "raw": "{\n  \"title\": \"Revisi Artikel untuk Status Publish\",\n  \"content\": \"Konten revisi ini sudah cukup panjang untuk melewati minimal 200 karakter. Revisi fokus pada klarifikasi konsep microservice, contoh implementasi Golang dan praktik validasi input agar konsistensi data tetap terjaga, kemudian siap dipublikasi dengan status publish. Artikel ini juga menjelaskan pola repository dan service, endpoint REST, serta pengamanan agar data tidak masuk dengan kondisi invalid sebelum disimpan ke database. Ini memastikan perilaku update stabil di semua metode request yang didukung.\",\n  \"category\": \"Technology\",\n  \"status\": \"publish\"\n}"
         },
         "url": {
           "raw": "{{base_url}}/article/{{post_id}}",
@@ -60,7 +60,39 @@
       }
     },
     {
-      "name": "Delete Article (DELETE)",
+      "name": "5. Update Article (PATCH)",
+      "request": {
+        "method": "PATCH",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Patch Artikel Untuk Draft Mode\",\n  \"content\": \"Patch ini juga memenuhi batas minimum panjang content dengan uraian tambahan agar tidak kena validasi. Panjang konten ini sengaja dibuat jelas, rinci, dan menutup syarat minimal 200 karakter untuk memastikan request tidak gagal validasi saat proses pembaruan dilakukan di environment development. Gunakan contoh ini untuk verifikasi method PATCH berjalan konsisten dengan validasi yang sama seperti PUT dan POST alias.\",\n  \"category\": \"Education\",\n  \"status\": \"draft\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/article/{{post_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["article", "{{post_id}}"]
+        }
+      }
+    },
+    {
+      "name": "6. Update Article (POST alias)",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Update via POST untuk Trashed Flow\",\n  \"content\": \"Update artikel dengan metode POST, tetap memenuhi batas minimal 200 karakter pada field content agar request lolos validasi dan bisa diproses backend. Informasi ini juga menunjukkan bahwa method POST dapat dipakai sebagai alias update sesuai ketentuan soal, dan payloadnya diperlakukan sama ketatnya dengan validasi seperti method PUT maupun PATCH. Ini sangat berguna untuk integrasi client yang hanya menggunakan satu metode utama.\",\n  \"category\": \"Operations\",\n  \"status\": \"draft\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/article/{{post_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["article", "{{post_id}}"]
+        }
+      }
+    },
+    {
+      "name": "7. Delete Article (DELETE)",
       "request": {
         "method": "DELETE",
         "url": {
@@ -71,20 +103,20 @@
       }
     },
     {
-      "name": "Delete Article (POST alias)",
+      "name": "8. Delete Article (POST alias)",
       "request": {
         "method": "POST",
         "url": {
-          "raw": "{{base_url}}/article/{{post_id}}?force=delete",
+          "raw": "{{base_url}}/article/{{post_id}}?action=delete",
           "host": ["{{base_url}}"],
           "path": ["article", "{{post_id}}"],
-          "query": [{ "key": "force", "value": "delete" }]
+          "query": [{"key": "action", "value": "delete"}]
         }
       }
     }
   ],
   "variable": [
-    {"key": "base_url", "value": "http://localhost:8000"},
+    {"key": "base_url", "value": "https://be-sharing-vision.meetsin.id"},
     {"key": "post_id", "value": "1"}
   ]
 }

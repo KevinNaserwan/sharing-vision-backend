@@ -1,0 +1,20 @@
+[Unit]
+Description=Sharing Vision Article API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/sharing-vision-backend
+Environment="DB_DSN=YOUR_DSN"
+Environment="ALLOWED_ORIGINS=https://be-sharing-vision.meetsin.id,https://*.vercel.app,http://localhost:5173"
+ExecStart=/opt/sharing-vision-backend/article-service
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/sharing-vision-backend
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
