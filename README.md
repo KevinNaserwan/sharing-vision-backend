@@ -25,7 +25,7 @@ Backend Golang (Gin + GORM) untuk use case Post Article.
 
 Buat database MySQL:
 
-```bash
+```sql
 CREATE DATABASE article;
 ```
 
@@ -52,21 +52,20 @@ go run ./app
 
 Server berjalan di `http://localhost:8000`.
 
-## Deploy Backend (opsional, gratis)
+## Deploy Backend (gratis, disarankan)
 
-### Render (gratis)
+### Render
 
-1. Push repo ke GitHub.
-2. Buat Web Service baru.
-3. Build Command: `go build -o app ./app`
-4. Start Command: `./app`
-5. Tambah environment variable `DB_DSN` mengarah ke MySQL kamu.
+1. Buat New Web Service.
+2. Set build command: `go build -o app ./app`
+3. Set start command: `./app`
+4. Tambah env `DB_DSN` ke MySQL host.
 
-### Railway (gratis tier)
+### Railway
 
-1. Import repository.
-2. Environment variable: `DB_DSN`.
-3. Start command: `go run ./app`.
+1. Import repo.
+2. Env: `DB_DSN`
+3. Start command: `go run ./app`
 
 ### Docker
 
@@ -78,3 +77,7 @@ docker run -p 8000:8000 -e DB_DSN='user:pass@tcp(host:3306)/article?charset=utf8
 ## Postman Collection
 
 File: `postman-collection.json`
+
+## Repo
+
+- Backend: https://github.com/KevinNaserwan/sharing-vision-backend
