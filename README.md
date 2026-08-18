@@ -117,7 +117,7 @@ cat postman-collection.json
 ### Unit Test Go
 
 ```bash
-go test ./...
+./scripts/run-tests.sh
 ```
 
 ### Smoke Test (real API)
@@ -143,6 +143,17 @@ echo "$CREATED"
 # list
 curl -sS "$BASE_URL/article/10/0"
 ```
+
+Jika environment lokal tidak punya `go`, gunakan fallback via Docker:
+
+```bash
+./scripts/run-tests.sh
+```
+
+### Poin evaluasi (cek dokumentasi)
+
+- Test API sudah punya alur 400/201/200 untuk validasi CRUD.
+- `./scripts/run-tests.sh` tersedia untuk menjalankan suite saat `go` tidak terpasang di host.
 
 ## Deployment (VPS)
 
