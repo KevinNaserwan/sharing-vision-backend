@@ -47,9 +47,9 @@ func main() {
 	h.Register(r)
 	health := func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"status":   "ok",
-			"service":  "sharing-vision-backend",
-			"message":  "sharing-vision backend is running",
+			"status":  "ok",
+			"service": "sharing-vision-backend",
+			"message": "sharing-vision backend is running",
 		})
 	}
 	r.GET("/", health)
@@ -58,7 +58,7 @@ func main() {
 	srv := &http.Server{
 		Addr:              cfg.ServerAddress,
 		Handler:           r,
-		ReadHeaderTimeout:  cfg.ReadHeaderTimeout,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.RequestTimeout,
 		WriteTimeout:      cfg.RequestTimeout,
 		IdleTimeout:       cfg.RequestTimeout,

@@ -88,7 +88,7 @@ func main() {
 	srv := &http.Server{
 		Addr:              cfg.GatewayHTTPAddress,
 		Handler:           r,
-		ReadHeaderTimeout:  cfg.ReadHeaderTimeout,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.RequestTimeout,
 		WriteTimeout:      cfg.RequestTimeout,
 		IdleTimeout:       cfg.RequestTimeout,
@@ -245,7 +245,6 @@ func articleReadRouteHandler(client articlepb.ArticleServiceClient) gin.HandlerF
 		}
 	}
 }
-
 
 func getArticleHandler(client articlepb.ArticleServiceClient) gin.HandlerFunc {
 	return func(c *gin.Context) {

@@ -48,7 +48,7 @@ func main() {
 	server := &http.Server{
 		Addr:              cfg.HealthHTTPAddress,
 		Handler:           r,
-		ReadHeaderTimeout:  cfg.ReadHeaderTimeout,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.RequestTimeout,
 		WriteTimeout:      cfg.RequestTimeout,
 		IdleTimeout:       cfg.RequestTimeout,

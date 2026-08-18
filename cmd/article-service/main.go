@@ -208,7 +208,7 @@ func buildHTTPServer(cfg config.AppConfig, h *handler.ArticleHandler) *http.Serv
 	return &http.Server{
 		Addr:              cfg.ArticleHTTPAddress,
 		Handler:           r,
-		ReadHeaderTimeout:  cfg.ReadHeaderTimeout,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.RequestTimeout,
 		WriteTimeout:      cfg.RequestTimeout,
 		IdleTimeout:       cfg.RequestTimeout,

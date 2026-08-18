@@ -17,9 +17,9 @@ const (
 )
 
 type Event struct {
-	Type      EventType `json:"type"`
-	Post      *model.Post
-	Occurred  time.Time `json:"occurred_at"`
+	Type     EventType `json:"type"`
+	Post     *model.Post
+	Occurred time.Time `json:"occurred_at"`
 }
 
 type EventBus struct {
