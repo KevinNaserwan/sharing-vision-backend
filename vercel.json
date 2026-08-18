@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "cmd/api/main.go",
+      "src": "cmd/gateway/main.go",
       "use": "@vercel/go"
     }
   ],

@@ -10,6 +10,12 @@ import (
 type AppConfig struct {
 	Environment          string
 	ServerAddress        string
+	ArticleHTTPAddress   string
+	ArticleGRPCAddress   string
+	GatewayHTTPAddress   string
+	HealthHTTPAddress    string
+	ArticleGRPCTarget    string
+	EnableEventConsumer  bool
 	DatabaseDSN          string
 	AllowedOrigins       []string
 	RequestTimeout       time.Duration
@@ -19,6 +25,7 @@ type AppConfig struct {
 }
 
 func Load() AppConfig {
+	serverAddress := getenv("SERVER_ADDRESS", ":8000")
 	allowed := splitList(getenv("ALLOWED_ORIGINS", "https://be-sharing-vision.meetsin.id,http://localhost:5173,http://localhost:3000,https://*.vercel.app"))
 
 	requestTimeout := getDuration("REQUEST_TIMEOUT_SECONDS", 15)
@@ -27,7 +34,13 @@ func Load() AppConfig {
 
 	return AppConfig{
 		Environment:          getenv("APP_ENV", "production"),
-		ServerAddress:        getenv("SERVER_ADDRESS", ":8000"),
+		ServerAddress:        serverAddress,
+		ArticleHTTPAddress:   getenv("ARTICLE_HTTP_ADDRESS", ":8001"),
+		ArticleGRPCAddress:   getenv("ARTICLE_GRPC_ADDRESS", ":9001"),
+		GatewayHTTPAddress:   getenv("GATEWAY_HTTP_ADDRESS", serverAddress),
+		HealthHTTPAddress:    getenv("HEALTH_HTTP_ADDRESS", ":8002"),
+		ArticleGRPCTarget:    getenv("ARTICLE_SERVICE_GRPC_TARGET", "127.0.0.1:9001"),
+		EnableEventConsumer:  getenvBool("ENABLE_EVENT_CONSUMER", true),
 		DatabaseDSN:          getenv("DB_DSN", "root:root@tcp(127.0.0.1:3306)/article?charset=utf8mb4&parseTime=True&loc=Local"),
 		AllowedOrigins:       allowed,
 		RequestTimeout:       time.Duration(requestTimeout) * time.Second,
@@ -35,6 +48,20 @@ func Load() AppConfig {
 		MaxRequestBodyBytes:  maxBody,
 		EnableRequestLogging: getenv("ENABLE_REQUEST_LOGGING", "true") == "true",
 	}
+}
+
+func getenvBool(key string, fallback bool) bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	if value == "" {
+		return fallback
+	}
+
+	result, err := strconv.ParseBool(value)
+	if err != nil {
+		return fallback
+	}
+
+	return result
 }
 
 func splitList(value string) []string {

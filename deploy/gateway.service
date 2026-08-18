@@ -1,13 +1,13 @@
 [Unit]
-Description=Sharing Vision Article Service (HTTP + gRPC)
-After=network.target
+Description=Sharing Vision Gateway Service
+After=network.target article.service
 
 [Service]
 Type=simple
 User=www-data
 WorkingDirectory=/opt/sharing-vision-backend
 EnvironmentFile=/opt/sharing-vision-backend/.env
-ExecStart=/opt/sharing-vision-backend/article-service
+ExecStart=/opt/sharing-vision-backend/gateway
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=yes

@@ -1,16 +1,32 @@
 # sharing-vision-backend
 
-Backend microservice **Post Article** (Go + Gin + GORM + MySQL).
+Backend microservice (Go + Gin + MySQL) untuk use case **Post Article**.
 
-## Struktur Proyek
-- `cmd/api`: HTTP API
-- `cmd/migrate`: runner migrasi SQL
-- `internal`: config, middleware, service, repository, model, storage
-- `migrations`: skema tabel `posts`
-- `postman-collection.json`: koleksi endpoint untuk pengujian
-- `deploy/nginx-be-sharing-vision.conf`: template reverse proxy domain publik
+## Arsitektur
+- `cmd/api` (legacy): service tunggal tetap tersedia untuk kebutuhan kompatibilitas lokal.
+- `cmd/article-service`: **article-service internal**  
+  - HTTP CRUD untuk artikel (`/article/...`)  
+  - gRPC CRUD & event stream (`ArticleService`)
+  - Publikasi event: `created`, `updated`, `deleted`
+- `cmd/gateway`: **gateway publik** untuk memenuhi endpoint HTTP yang dipakai frontend
+- `cmd/health-service`: endpoint `/health` dan `/ready` terpisah
 
-## Tabel `posts`
+`gateway` berjalan sebagai entrypoint publik. `article-service` dan `health-service` dipisah untuk memisahkan concern.
+
+## Struktur Direktori
+- `internal/config` → konfigurasi app
+- `internal/handler` → handler HTTP
+- `internal/service` → business logic + validasi
+- `internal/repository` → akses database
+- `internal/model` → model `posts`
+- `internal/middleware` → security, cors, timeout middleware
+- `internal/articlepb` → definisi interface gRPC + codec JSON
+- `internal/pubsub` → in-memory event bus (pub/sub)
+- `cmd/migrate` → migrasi database
+- `migrations` → skema tabel `posts`
+- `postman-collection.json` → koleksi Postman sesuai requirement
+
+## Database `posts`
 
 ```sql
 CREATE TABLE IF NOT EXISTS posts (
@@ -21,15 +37,10 @@ CREATE TABLE IF NOT EXISTS posts (
   status VARCHAR(100) NOT NULL CHECK (status IN ('publish', 'draft', 'thrash')),
   created_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-## Prasyarat
-- Go 1.22+
-- MySQL/MariaDB
-- Database `article`
-
-## Konfigurasi Environment
+## Environment
 
 ```bash
 cp .env.example .env
@@ -46,6 +57,14 @@ REQUEST_TIMEOUT_SECONDS=15
 READ_HEADER_TIMEOUT_SECONDS=5
 MAX_REQUEST_BODY_BYTES=1048576
 ENABLE_REQUEST_LOGGING=true
+
+# Microservice routing
+ARTICLE_HTTP_ADDRESS=:8001
+ARTICLE_GRPC_ADDRESS=:9001
+GATEWAY_HTTP_ADDRESS=:8000
+HEALTH_HTTP_ADDRESS=:8002
+ARTICLE_SERVICE_GRPC_TARGET=127.0.0.1:9001
+ENABLE_EVENT_CONSUMER=true
 ```
 
 ## Menjalankan
@@ -56,144 +75,117 @@ ENABLE_REQUEST_LOGGING=true
 go run ./cmd/migrate
 ```
 
-### 2) Menjalankan API
+### 2) Menjalankan microservices
 
 ```bash
 source .env
+
+# internal article service + gRPC
+go run ./cmd/article-service
+
+# API gateway publik (jalankan di terminal lain)
+go run ./cmd/gateway
+
+# health service terpisah (opsional)
+go run ./cmd/health-service
+```
+
+### 3) Menjalankan versi legacy (opsional)
+
+```bash
 go run ./cmd/api
 ```
 
-Service berjalan di `:8000`.
-
-### 3) Docker
+### 4) Docker
 
 ```bash
 docker build -t sharing-vision-backend:live .
 docker run -d \
-  --name sharing-vision-backend \
+  --name sharing-vision-article \
+  --network svnet \
+  -p 8001:8001 -p 9001:9001 \
+  --env-file .env \
+  sharing-vision-backend:live \
+  /app/article-service
+
+docker run -d \
+  --name sharing-vision-gateway \
   --network svnet \
   -p 8000:8000 \
   --env-file .env \
-  sharing-vision-backend:live
+  sharing-vision-backend:live \
+  /app/gateway
 ```
 
-## Endpoint
+Jika Dockerfile dipakai default (tanpa override command), container menjalankan `gateway`.
+
+## Endpoint (HTTP via gateway/public API)
 
 Prefix: `/article`
 
-1. `POST /article/` → Create article baru
-2. `GET /article/{limit}/{offset}` → List artikel dengan pagination
-3. `GET /article/{id}` → Detail artikel by id
-4. `PUT /article/{id}` → Update artikel by id
-5. `PATCH /article/{id}` → Update artikel by id
-6. `POST /article/{id}` → Update by id (alias), atau hapus jika `?action=delete`
-7. `DELETE /article/{id}` → Hapus artikel by id
+1. `POST /article/` → membuat artikel baru
+2. `GET /article/{limit}/{offset}` → list dengan pagination
+3. `GET /article/{id}` → detail artikel
+4. `PUT /article/{id}` → update artikel
+5. `PATCH /article/{id}` → update artikel
+6. `POST /article/{id}` → update artikel (alias), optional `?action=delete` untuk hapus
+7. `DELETE /article/{id}` → hapus artikel
+8. `GET /health`, `GET /ready`
 
-Health:
-- `GET /health`
-- `GET /ready`
-- `GET /` (ping service)
+## Validasi Input
 
-## Validasi Request
-
-Semua input harus memenuhi:
 - `title`: required, minimal 20 karakter
 - `content`: required, minimal 200 karakter
 - `category`: required, minimal 3 karakter
-- `status`: required, harus salah satu dari `publish`, `draft`, `thrash`
+- `status`: required, salah satu dari `publish`, `draft`, `thrash`
 
-Jika validasi gagal: response `400` dengan detail error per field.
+Jika validasi gagal: HTTP `400` dengan payload error validasi.
+
+## gRPC (internal)
+
+`cmd/article-service` mengekspos gRPC `ArticleService` pada `ARTICLE_GRPC_ADDRESS`.
+
+Service:
+- `CreateArticle`
+- `ListArticles`
+- `GetArticle`
+- `UpdateArticle`
+- `DeleteArticle`
+- `SubscribeEvents` (stream event untuk kebutuhan pub/sub/logging)
+
+Encoding gRPC: JSON codec internal (tanpa file `.proto` generation dalam repository).
 
 ## Postman
 
-Import `postman-collection.json`.
+File: `postman-collection.json`
 
-```bash
+```
 cat postman-collection.json
 ```
 
-## Unit & Integration Test
-
-### Unit Test Go
+## Smoke test cepat
 
 ```bash
-./scripts/run-tests.sh
-```
+BASE_URL="${BASE_URL:-https://be-sharing-vision.meetsin.id}"
+FE_URL="${FE_URL:-https://sharing-vision-frontend-two.vercel.app}"
 
-### Smoke Test (real API)
-
-```bash
-BASE_URL="${BASE_URL:-http://127.0.0.1:8000}"
-
-# health
 curl -sS "$BASE_URL/health"
-
-# create
-CREATED=$(curl -sS -X POST "$BASE_URL/article/" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Judul valid untuk validasi API dan integrasi",
-    "content": "Konten artikel ini ditulis cukup panjang agar memenuhi validasi minimum dua ratus karakter. Artikel menjelaskan alur publish draft trash, validasi input, endpoint pagination, dan cara sinkronisasi data antar halaman dashboard sehingga fitur dapat dipastikan berfungsi dengan aman di environment produksi.",
-    "category": "Technology",
-    "status": "draft"
-  }')
-
-echo "$CREATED"
-
-# list
 curl -sS "$BASE_URL/article/10/0"
+curl -sS "$FE_URL/api/article/10/0"
 ```
 
-Jika environment lokal tidak punya `go`, gunakan fallback via Docker:
+## Deployment
 
-```bash
-./scripts/run-tests.sh
-```
-
-### Poin evaluasi (cek dokumentasi)
-
-- Test API sudah punya alur 400/201/200 untuk validasi CRUD.
-- `./scripts/run-tests.sh` tersedia untuk menjalankan suite saat `go` tidak terpasang di host.
-
-## Deployment (VPS)
-
-1. Build image backend
-2. Jalankan container
-3. Pasang reverse proxy host untuk domain publik ke `127.0.0.1:8000`
-4. Aktifkan TLS (Let’s Encrypt) pada domain `be-sharing-vision.meetsin.id`
-
-Template reverse proxy: `deploy/nginx-be-sharing-vision.conf`
-
-### One-shot infra validation
-
-Setelah deploy / saat validasi cepat, jalankan:
-
-```bash
-BASE_URL=https://be-sharing-vision.meetsin.id \
-FE_URL=https://sharing-vision-frontend-two.vercel.app \
-./scripts/fix-infra-one-shot.sh
-```
-
-Script ini akan menjalankan:
-- check konfigurasi dan reload Nginx,
-- cek validitas TLS,
-- cek `GET /health`, `GET /ready`, `GET /article/10/0`,
-- cek FE proxy (list/create/400 validation),
-- cek `HEAD /health`, `HEAD /ready`.
+Lihat [`DEPLOYMENT.md`](./DEPLOYMENT.md) untuk:
+- mapping reverse proxy nginx
+- checklist live check
+- verifikasi HTTPS + status endpoint
 
 ## Keamanan
-- Validasi dan sanitasi payload di service layer
-- CORS allowlist sesuai `ALLOWED_ORIGINS`
-- Security headers (HSTS, CSP, X-Content-Type-Options, X-Frame-Options, dll)
-- Recover JSON handler untuk panic
-- Batas maksimal body request
-- `.env` dikecualikan via `.gitignore`
 
-## Referensi
-- [cmd/api/main.go](/cmd/api/main.go)
-- [cmd/migrate/main.go](/cmd/migrate/main.go)
-- [internal/config/config.go](/internal/config/config.go)
-- [internal/service/post_service.go](/internal/service/post_service.go)
-- [internal/handler/article_handler.go](/internal/handler/article_handler.go)
-- [internal/repository/post_repository.go](/internal/repository/post_repository.go)
-- [postman-collection.json](/postman-collection.json)
+- Validasi ketat pada service layer sebelum operasi database
+- CORS allowlist (`ALLOWED_ORIGINS`)
+- Security headers (HSTS, CSP, X-Content-Type-Options, X-Frame-Options, dll)
+- Recover handler untuk panic
+- Batas maksimal body request
+- `.env` tidak disimpan di repo (`.gitignore`)

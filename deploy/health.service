@@ -1,5 +1,5 @@
 [Unit]
-Description=Sharing Vision Article Service (HTTP + gRPC)
+Description=Sharing Vision Health Service
 After=network.target
 
 [Service]
@@ -7,7 +7,7 @@ Type=simple
 User=www-data
 WorkingDirectory=/opt/sharing-vision-backend
 EnvironmentFile=/opt/sharing-vision-backend/.env
-ExecStart=/opt/sharing-vision-backend/article-service
+ExecStart=/opt/sharing-vision-backend/health-service
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=yes
