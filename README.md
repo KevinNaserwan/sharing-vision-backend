@@ -105,6 +105,7 @@ docker run -d \
   --network svnet \
   -p 8001:8001 -p 9001:9001 \
   --env-file .env \
+  --entrypoint /app/article-service \
   sharing-vision-backend:live \
   /app/article-service
 

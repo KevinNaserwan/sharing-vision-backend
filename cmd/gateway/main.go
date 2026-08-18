@@ -44,10 +44,8 @@ func main() {
 	{
 		api.POST("", createArticleHandler(client))
 		api.POST("/", createArticleHandler(client))
-		api.GET(":limit/:offset", listArticlesHandler(client))
-		api.GET(":id", getArticleHandler(client))
-		api.HEAD(":limit/:offset", listArticlesHandler(client))
-		api.HEAD(":id", getArticleHandler(client))
+		api.GET("/*path", articleReadRouteHandler(client))
+		api.HEAD("/*path", articleReadRouteHandler(client))
 		api.PUT(":id", updateArticleHandler(client))
 		api.PATCH(":id", updateArticleHandler(client))
 		api.POST(":id", upsertOrDeleteArticleHandler(client))
@@ -193,6 +191,61 @@ func listArticlesHandler(client articlepb.ArticleServiceClient) gin.HandlerFunc 
 		c.JSON(http.StatusOK, resp.Posts)
 	}
 }
+
+func articleReadRouteHandler(client articlepb.ArticleServiceClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		path := strings.TrimPrefix(c.Param("path"), "/")
+		if path == "" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+
+		parts := strings.Split(path, "/")
+		switch len(parts) {
+		case 1:
+			id, err := parseUint(parts[0])
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an integer"})
+				return
+			}
+			resp, err := client.GetArticle(c.Request.Context(), &articlepb.GetArticleRequest{Id: id})
+			if err != nil {
+				toHTTPError(c, err)
+				return
+			}
+			if resp == nil || resp.Post == nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "article not found"})
+				return
+			}
+			c.JSON(http.StatusOK, resp.Post)
+			return
+		case 2:
+			limit, err := parsePositiveInt(parts[0])
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "limit must be a positive integer"})
+				return
+			}
+
+			offset, err := parseInt(parts[1])
+			if err != nil || offset < 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "offset must be zero or a positive integer"})
+				return
+			}
+
+			resp, err := client.ListArticles(c.Request.Context(), &articlepb.ListArticlesRequest{Limit: limit, Offset: offset})
+			if err != nil {
+				toHTTPError(c, err)
+				return
+			}
+			c.JSON(http.StatusOK, resp.Posts)
+			return
+		default:
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+	}
+}
+
 
 func getArticleHandler(client articlepb.ArticleServiceClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
