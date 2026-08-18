@@ -38,12 +38,6 @@ func (h *ArticleHandler) Register(r *gin.Engine) {
 	r.GET("/ready", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
-
-	r.GET("/swagger.json", func(c *gin.Context) {
-		c.File("internal/docs/openapi.json")
-	})
-
-	r.Static("/docs", "internal/docs/swagger")
 }
 
 func (h *ArticleHandler) create(c *gin.Context) {
